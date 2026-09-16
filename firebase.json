@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "dist/jojo/browser",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
