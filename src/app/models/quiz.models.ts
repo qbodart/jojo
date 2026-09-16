@@ -1,9 +1,12 @@
 export type Operation = 'multiplication' | 'division' | 'both';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'challenge';
+export type InputMode = 'keyboard' | 'choice';
 
 export interface QuizConfig {
   operation: Operation;
   difficulty: Difficulty;
+  inputMode: InputMode;
+  challengePenaltySeconds?: number; // only used in challenge mode
 }
 
 export interface Question {
@@ -47,6 +50,12 @@ export const OPERATION_LABELS: Record<Operation, string> = {
   both: 'Les deux',
 };
 
+export const INPUT_MODE_LABELS: Record<InputMode, string> = {
+  keyboard: 'Clavier',
+  choice: 'Choix',
+};
+
 // Challenge mode constants
 export const CHALLENGE_TARGET_SCORE = 20;
-export const CHALLENGE_PENALTY_SECONDS = 5;
+export const CHALLENGE_DEFAULT_PENALTY_SECONDS = 5;
+export const CHALLENGE_TIMER_OPTIONS = [5, 7, 10];

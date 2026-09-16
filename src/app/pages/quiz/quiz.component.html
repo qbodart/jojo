@@ -91,7 +91,7 @@
             }
             {{ feedbackMessage() }}
           </p>
-          @if (lastCorrectAnswer() !== null) {
+          @if (lastCorrectAnswer() !== null && inputMode() === 'keyboard') {
             <p class="text-lg sm:text-xl font-semibold mt-1 text-red-500">
               La réponse était {{ lastCorrectAnswer() }}
             </p>
@@ -104,32 +104,48 @@
         </div>
       }
 
-      <!-- Answer Input -->
-      <div class="w-full max-w-[280px] sm:max-w-xs">
-        <form (ngSubmit)="onSubmit()" class="flex gap-2 sm:gap-3">
-          <input
-            #answerInput
-            type="number"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            step="1"
-            [value]="userAnswer()"
-            (input)="userAnswer.set($any($event.target).value)"
-            (keydown)="onKeydown($event)"
-            [disabled]="showingFeedback()"
-            placeholder="?"
-            class="min-w-0 flex-1 text-center text-2xl sm:text-4xl font-bold py-3 px-3 sm:px-4 rounded-2xl border-3 border-purple-300 focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-200 shadow-lg bg-white text-purple-800 placeholder-purple-300 disabled:opacity-50"
-            autocomplete="off"
-          />
-          <button
-            type="submit"
-            [disabled]="showingFeedback() || userAnswer().trim() === ''"
-            class="shrink-0 px-5 sm:px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-lg sm:text-2xl font-extrabold rounded-2xl shadow-lg hover:from-purple-600 hover:to-pink-600 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            OK
-          </button>
-        </form>
-      </div>
+      <!-- Answer Area -->
+      @if (inputMode() === 'keyboard') {
+        <!-- Keyboard Input -->
+        <div class="w-full max-w-[280px] sm:max-w-xs">
+          <form (ngSubmit)="onSubmit()" class="flex gap-2 sm:gap-3">
+            <input
+              #answerInput
+              type="number"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              step="1"
+              [value]="userAnswer()"
+              (input)="userAnswer.set($any($event.target).value)"
+              (keydown)="onKeydown($event)"
+              [disabled]="showingFeedback()"
+              placeholder="?"
+              class="min-w-0 flex-1 text-center text-2xl sm:text-4xl font-bold py-3 px-3 sm:px-4 rounded-2xl border-3 border-purple-300 focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-200 shadow-lg bg-white text-purple-800 placeholder-purple-300 disabled:opacity-50"
+              autocomplete="off"
+            />
+            <button
+              type="submit"
+              [disabled]="showingFeedback() || userAnswer().trim() === ''"
+              class="shrink-0 px-5 sm:px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-lg sm:text-2xl font-extrabold rounded-2xl shadow-lg hover:from-purple-600 hover:to-pink-600 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              OK
+            </button>
+          </form>
+        </div>
+      } @else {
+        <!-- Multiple Choice Buttons -->
+        <div class="w-full max-w-sm grid grid-cols-2 gap-3 sm:gap-4">
+          @for (value of choices(); track $index) {
+            <button
+              (click)="selectChoice(value)"
+              [disabled]="showingFeedback()"
+              [class]="choiceButtonClass(value) + ' disabled:cursor-default'"
+            >
+              {{ value }}
+            </button>
+          }
+        </div>
+      }
     } @else {
       <!-- No more questions (edge case) -->
       <p class="text-2xl text-purple-600 font-bold">Chargement...</p>

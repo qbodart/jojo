@@ -1,13 +1,16 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { QuizService } from '../../services/quiz.service';
 import {
   type Operation,
   type Difficulty,
+  type InputMode,
   DIFFICULTY_SETTINGS,
   OPERATION_LABELS,
+  INPUT_MODE_LABELS,
   CHALLENGE_TARGET_SCORE,
-  CHALLENGE_PENALTY_SECONDS,
+  CHALLENGE_DEFAULT_PENALTY_SECONDS,
+  CHALLENGE_TIMER_OPTIONS,
 } from '../../models/quiz.models';
 
 @Component({
@@ -21,6 +24,10 @@ export class MenuComponent {
 
   readonly selectedOperation = signal<Operation | null>(null);
   readonly selectedDifficulty = signal<Difficulty | null>(null);
+  readonly selectedInputMode = signal<InputMode>('keyboard');
+  readonly selectedChallengeTimer = signal<number>(CHALLENGE_DEFAULT_PENALTY_SECONDS);
+
+  readonly showChallengeTimer = computed(() => this.selectedDifficulty() === 'challenge');
 
   readonly operations: { key: Operation; label: string; icon: string }[] = [
     { key: 'multiplication', label: OPERATION_LABELS.multiplication, icon: '×' },
@@ -47,9 +54,16 @@ export class MenuComponent {
     {
       key: 'challenge',
       label: DIFFICULTY_SETTINGS.challenge.label,
-      description: `Atteins ${CHALLENGE_TARGET_SCORE} pts ! -1 si > ${CHALLENGE_PENALTY_SECONDS}s`,
+      description: `Atteins ${CHALLENGE_TARGET_SCORE} pts !`,
     },
   ];
+
+  readonly inputModes: { key: InputMode; label: string; icon: string }[] = [
+    { key: 'keyboard', label: INPUT_MODE_LABELS.keyboard, icon: '⌨' },
+    { key: 'choice', label: INPUT_MODE_LABELS.choice, icon: '☝' },
+  ];
+
+  readonly challengeTimerOptions = CHALLENGE_TIMER_OPTIONS;
 
   selectOperation(op: Operation): void {
     this.selectedOperation.set(op);
@@ -57,6 +71,14 @@ export class MenuComponent {
 
   selectDifficulty(diff: Difficulty): void {
     this.selectedDifficulty.set(diff);
+  }
+
+  selectInputMode(mode: InputMode): void {
+    this.selectedInputMode.set(mode);
+  }
+
+  selectChallengeTimer(seconds: number): void {
+    this.selectedChallengeTimer.set(seconds);
   }
 
   canStart(): boolean {
@@ -68,7 +90,12 @@ export class MenuComponent {
     const difficulty = this.selectedDifficulty();
     if (!operation || !difficulty) return;
 
-    this.quizService.startQuiz({ operation, difficulty });
+    this.quizService.startQuiz({
+      operation,
+      difficulty,
+      inputMode: this.selectedInputMode(),
+      challengePenaltySeconds: difficulty === 'challenge' ? this.selectedChallengeTimer() : undefined,
+    });
     this.router.navigate(['/quiz']);
   }
 }

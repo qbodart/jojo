@@ -6,7 +6,7 @@ import {
   type QuizResult,
   DIFFICULTY_SETTINGS,
   CHALLENGE_TARGET_SCORE,
-  CHALLENGE_PENALTY_SECONDS,
+  CHALLENGE_DEFAULT_PENALTY_SECONDS,
 } from '../models/quiz.models';
 
 @Injectable({ providedIn: 'root' })
@@ -25,9 +25,14 @@ export class QuizService {
   readonly challengeScore = this._challengeScore.asReadonly();
 
   readonly isChallenge = computed(() => this._config()?.difficulty === 'challenge');
+  readonly inputMode = computed(() => this._config()?.inputMode ?? 'keyboard');
 
   readonly challengeTargetScore = CHALLENGE_TARGET_SCORE;
-  readonly challengePenaltySeconds = CHALLENGE_PENALTY_SECONDS;
+
+  readonly challengePenaltySeconds = computed(() => {
+    const config = this._config();
+    return config?.challengePenaltySeconds ?? CHALLENGE_DEFAULT_PENALTY_SECONDS;
+  });
 
   readonly challengeProgressPercent = computed(() => {
     const score = this._challengeScore();
@@ -102,10 +107,12 @@ export class QuizService {
       throw new Error('No current question');
     }
 
+    const penaltySeconds = this.challengePenaltySeconds();
+
     const isCorrect =
       userAnswer !== null && parseInt(String(userAnswer), 10) === question.answer;
 
-    const timePenalty = questionElapsedSeconds >= CHALLENGE_PENALTY_SECONDS;
+    const timePenalty = questionElapsedSeconds >= penaltySeconds;
 
     const answered: AnsweredQuestion = {
       question,
@@ -125,6 +132,69 @@ export class QuizService {
 
     const won = this._challengeScore() >= CHALLENGE_TARGET_SCORE;
     return { answered, won };
+  }
+
+  /**
+   * Generate 4 choices for a multiple choice question.
+   * Returns an array of 4 numbers: 1 correct + 3 distractors, shuffled.
+   */
+  generateChoices(question: Question): number[] {
+    const correct = question.answer;
+    const maxTable = DIFFICULTY_SETTINGS[this._config()?.difficulty ?? 'medium'].maxTable;
+    const wrongSet = new Set<number>();
+
+    // Phase 1: table-based distractors
+    if (question.operator === '×') {
+      // For a × b, try a×(b±1), a×(b±2), (a±1)×b
+      const a = question.operand1;
+      const b = question.operand2;
+      const candidates = [
+        a * (b - 1), a * (b + 1), a * (b - 2), a * (b + 2),
+        (a - 1) * b, (a + 1) * b,
+      ];
+      for (const c of candidates) {
+        if (c > 0 && c !== correct && wrongSet.size < 2) {
+          wrongSet.add(c);
+        }
+      }
+    } else {
+      // For c ÷ a = b, try other quotients from the same divisor
+      const divisor = question.operand2;
+      for (let q = 1; q <= maxTable; q++) {
+        if (q !== correct && wrongSet.size < 2) {
+          wrongSet.add(q);
+        }
+      }
+    }
+
+    // Phase 2: offset-based distractors to fill remaining
+    const offsets = [-3, 3, -2, 2, -5, 5, -1, 1, -7, 7, -4, 4, -8, 8, -6, 6, -9, 9, -10, 10];
+    for (const offset of offsets) {
+      if (wrongSet.size >= 3) break;
+      const candidate = correct + offset;
+      if (candidate > 0 && candidate !== correct && !wrongSet.has(candidate)) {
+        wrongSet.add(candidate);
+      }
+    }
+
+    // Fallback: if still not enough (very unlikely), add random values
+    let fallback = 1;
+    while (wrongSet.size < 3) {
+      if (fallback !== correct && !wrongSet.has(fallback)) {
+        wrongSet.add(fallback);
+      }
+      fallback++;
+    }
+
+    const choices = [correct, ...Array.from(wrongSet).slice(0, 3)];
+
+    // Shuffle using Fisher-Yates
+    for (let i = choices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+
+    return choices;
   }
 
   finishQuiz(timeUsed: number): QuizResult {

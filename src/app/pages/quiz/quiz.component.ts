@@ -13,7 +13,6 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { QuizService } from '../../services/quiz.service';
 import { TimerService } from '../../services/timer.service';
-import { CHALLENGE_PENALTY_SECONDS } from '../../models/quiz.models';
 import type { AnsweredQuestion } from '../../models/quiz.models';
 
 @Component({
@@ -35,20 +34,27 @@ export class QuizComponent implements OnInit, OnDestroy {
   readonly showingFeedback = signal(false);
   readonly lastTimePenalty = signal(false);
 
+  // Choice mode signals
+  readonly choices = signal<number[]>([]);
+  readonly selectedChoice = signal<number | null>(null);
+  readonly choiceFeedbackCorrectAnswer = signal<number | null>(null); // always set during choice feedback
+
   // Challenge mode signals
   readonly questionStartTime = signal(0);
-  readonly questionElapsed = signal(0); // seconds elapsed on current question
-  readonly challengeElapsedTotal = signal(0); // total seconds elapsed in challenge
+  readonly questionElapsed = signal(0);
+  readonly challengeElapsedTotal = signal(0);
 
   private feedbackTimeout: ReturnType<typeof setTimeout> | null = null;
   private questionTimerInterval: ReturnType<typeof setInterval> | null = null;
   private challengeClockInterval: ReturnType<typeof setInterval> | null = null;
 
   readonly isChallenge = this.quizService.isChallenge;
+  readonly inputMode = this.quizService.inputMode;
   readonly challengeScore = this.quizService.challengeScore;
   readonly challengeTargetScore = this.quizService.challengeTargetScore;
   readonly challengeProgressPercent = this.quizService.challengeProgressPercent;
-  readonly penaltyThreshold = CHALLENGE_PENALTY_SECONDS;
+
+  readonly penaltyThreshold = this.quizService.challengePenaltySeconds;
 
   // Encouraging messages
   private readonly correctMessages = [
@@ -109,22 +115,20 @@ export class QuizComponent implements OnInit, OnDestroy {
     return 'bg-gradient-to-r from-indigo-400 to-purple-400';
   });
 
-  /** True if the current question has been open for >= 5 seconds */
   readonly showTimePenaltyWarning = computed(() => {
-    return this.isChallenge() && this.questionElapsed() >= CHALLENGE_PENALTY_SECONDS;
+    return this.isChallenge() && this.questionElapsed() >= this.penaltyThreshold();
   });
 
   constructor() {
-    // Auto-focus input when feedback clears
+    // Auto-focus input when feedback clears (only in keyboard mode)
     effect(() => {
-      if (!this.showingFeedback()) {
+      if (!this.showingFeedback() && this.inputMode() === 'keyboard') {
         setTimeout(() => this.focusInput(), 50);
       }
     });
   }
 
   ngOnInit(): void {
-    // Guard: if no quiz config, go back to menu
     if (!this.quizService.config()) {
       this.router.navigate(['/']);
       return;
@@ -137,7 +141,12 @@ export class QuizComponent implements OnInit, OnDestroy {
       this.timerService.start(totalSeconds, () => this.onTimerFinish());
     }
 
-    setTimeout(() => this.focusInput(), 100);
+    // Generate initial choices if in choice mode
+    this.loadChoicesForCurrentQuestion();
+
+    if (this.inputMode() === 'keyboard') {
+      setTimeout(() => this.focusInput(), 100);
+    }
   }
 
   ngOnDestroy(): void {
@@ -148,6 +157,8 @@ export class QuizComponent implements OnInit, OnDestroy {
     }
   }
 
+  // --- Keyboard mode ---
+
   onSubmit(): void {
     if (this.showingFeedback()) return;
     if (!this.currentQuestion()) return;
@@ -156,11 +167,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     const parsed = raw === '' ? null : parseInt(raw, 10);
     if (parsed === null || isNaN(parsed)) return;
 
-    if (this.isChallenge()) {
-      this.submitChallengeAnswer(parsed);
-    } else {
-      this.submitNormalAnswer(parsed);
-    }
+    this.handleAnswer(parsed);
   }
 
   onKeydown(event: KeyboardEvent): void {
@@ -169,7 +176,54 @@ export class QuizComponent implements OnInit, OnDestroy {
     }
   }
 
+  // --- Choice mode ---
+
+  selectChoice(value: number): void {
+    if (this.showingFeedback()) return;
+    if (!this.currentQuestion()) return;
+
+    this.selectedChoice.set(value);
+    this.handleAnswer(value);
+  }
+
+  /** Get the CSS classes for a choice button based on feedback state */
+  choiceButtonClass(value: number): string {
+    const base = 'flex items-center justify-center p-4 sm:p-6 rounded-2xl shadow-lg font-extrabold text-2xl sm:text-3xl transition-all duration-200 cursor-pointer ';
+
+    if (this.feedbackState() === 'none') {
+      return base + 'bg-white text-purple-800 border-3 border-purple-200 hover:border-purple-400 hover:scale-105 active:scale-95';
+    }
+
+    const correctAnswer = this.choiceFeedbackCorrectAnswer();
+    const selected = this.selectedChoice();
+
+    if (value === correctAnswer) {
+      // This is the correct answer -- green
+      return base + 'bg-green-500 text-white border-3 border-green-600 scale-105';
+    }
+    if (value === selected && this.feedbackState() === 'wrong') {
+      // She tapped this one and it was wrong -- red
+      return base + 'bg-red-500 text-white border-3 border-red-600';
+    }
+    // Other buttons fade
+    return base + 'bg-white text-purple-300 border-3 border-gray-200 opacity-50';
+  }
+
+  // --- Shared answer handling ---
+
+  private handleAnswer(parsed: number): void {
+    if (this.isChallenge()) {
+      this.submitChallengeAnswer(parsed);
+    } else {
+      this.submitNormalAnswer(parsed);
+    }
+  }
+
   private submitNormalAnswer(parsed: number): void {
+    // Store correct answer before submitAnswer advances the question index
+    const correctAns = this.quizService.currentQuestion()!.answer;
+    this.choiceFeedbackCorrectAnswer.set(correctAns);
+
     const result: AnsweredQuestion = this.quizService.submitAnswer(parsed);
 
     this.showingFeedback.set(true);
@@ -187,18 +241,21 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     const delay = result.isCorrect ? 800 : 1500;
     this.feedbackTimeout = setTimeout(() => {
-      this.feedbackState.set('none');
-      this.lastCorrectAnswer.set(null);
-      this.userAnswer.set('');
-      this.showingFeedback.set(false);
+      this.clearFeedbackState();
 
       if (!this.quizService.currentQuestion()) {
         this.finishQuiz();
+      } else {
+        this.loadChoicesForCurrentQuestion();
       }
     }, delay);
   }
 
   private submitChallengeAnswer(parsed: number): void {
+    // Store correct answer before submitChallengeAnswer advances the question index
+    const correctAns = this.quizService.currentQuestion()!.answer;
+    this.choiceFeedbackCorrectAnswer.set(correctAns);
+
     const elapsed = this.questionElapsed();
     const { answered, won } = this.quizService.submitChallengeAnswer(parsed, elapsed);
 
@@ -217,20 +274,35 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     const delay = answered.isCorrect ? 800 : 1500;
     this.feedbackTimeout = setTimeout(() => {
-      this.feedbackState.set('none');
-      this.lastCorrectAnswer.set(null);
-      this.lastTimePenalty.set(false);
-      this.userAnswer.set('');
-      this.showingFeedback.set(false);
+      this.clearFeedbackState();
 
       if (won) {
         this.finishChallengeVictory();
       } else {
-        // Reset question timer for next question
         this.questionStartTime.set(Date.now());
         this.questionElapsed.set(0);
+        this.loadChoicesForCurrentQuestion();
       }
     }, delay);
+  }
+
+  private clearFeedbackState(): void {
+    this.feedbackState.set('none');
+    this.lastCorrectAnswer.set(null);
+    this.lastTimePenalty.set(false);
+    this.userAnswer.set('');
+    this.selectedChoice.set(null);
+    this.choiceFeedbackCorrectAnswer.set(null);
+    this.showingFeedback.set(false);
+  }
+
+  private loadChoicesForCurrentQuestion(): void {
+    if (this.inputMode() === 'choice') {
+      const question = this.quizService.currentQuestion();
+      if (question) {
+        this.choices.set(this.quizService.generateChoices(question));
+      }
+    }
   }
 
   private startChallengeTimers(): void {
@@ -239,7 +311,6 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.questionElapsed.set(0);
     this.challengeElapsedTotal.set(0);
 
-    // Tick every second to update question elapsed and total elapsed
     const startedAt = now;
     this.questionTimerInterval = setInterval(() => {
       const currentQuestionStart = this.questionStartTime();
