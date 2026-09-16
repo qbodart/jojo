@@ -1,5 +1,5 @@
 <div
-  [class]="'min-h-screen flex flex-col transition-colors duration-300 ' +
+  [class]="'min-h-screen flex flex-col transition-colors duration-300 overflow-x-hidden ' +
     (feedbackState() === 'correct' ? 'bg-green-100' :
      feedbackState() === 'wrong' ? 'bg-red-100' :
      'bg-gradient-to-br from-pink-100 via-purple-50 to-sky-100')"
@@ -105,8 +105,8 @@
       }
 
       <!-- Answer Input -->
-      <div class="w-full max-w-xs">
-        <form (ngSubmit)="onSubmit()" class="flex gap-3">
+      <div class="w-full max-w-[280px] sm:max-w-xs">
+        <form (ngSubmit)="onSubmit()" class="flex gap-2 sm:gap-3">
           <input
             #answerInput
             type="number"
@@ -118,13 +118,13 @@
             (keydown)="onKeydown($event)"
             [disabled]="showingFeedback()"
             placeholder="?"
-            class="flex-1 text-center text-3xl sm:text-4xl font-bold py-3 px-4 rounded-2xl border-3 border-purple-300 focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-200 shadow-lg bg-white text-purple-800 placeholder-purple-300 disabled:opacity-50"
+            class="min-w-0 flex-1 text-center text-2xl sm:text-4xl font-bold py-3 px-3 sm:px-4 rounded-2xl border-3 border-purple-300 focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-200 shadow-lg bg-white text-purple-800 placeholder-purple-300 disabled:opacity-50"
             autocomplete="off"
           />
           <button
             type="submit"
             [disabled]="showingFeedback() || userAnswer().trim() === ''"
-            class="px-6 sm:px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xl sm:text-2xl font-extrabold rounded-2xl shadow-lg hover:from-purple-600 hover:to-pink-600 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            class="shrink-0 px-5 sm:px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-lg sm:text-2xl font-extrabold rounded-2xl shadow-lg hover:from-purple-600 hover:to-pink-600 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             OK
           </button>
