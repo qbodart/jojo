@@ -1,12 +1,15 @@
 export type Operation = 'multiplication' | 'division' | 'both';
-export type Difficulty = 'easy' | 'medium' | 'hard' | 'challenge';
+export type GameMode = 'uitdaging' | 'alleTafels';
 export type InputMode = 'keyboard' | 'choice';
 
 export interface QuizConfig {
   operation: Operation;
-  difficulty: Difficulty;
+  gameMode: GameMode;
   inputMode: InputMode;
-  challengePenaltySeconds?: number; // only used in challenge mode
+  tables: number[]; // which tables to practice, e.g. [3, 6, 7, 8]
+  // Uitdaging-specific:
+  challengeTargetScore?: number; // 20, 50, or 100
+  challengePenaltySeconds?: number; // 5, 7, or 10
 }
 
 export interface Question {
@@ -21,7 +24,7 @@ export interface AnsweredQuestion {
   question: Question;
   userAnswer: number | null;
   isCorrect: boolean;
-  timePenalty?: boolean; // true if a time penalty was applied on this question
+  timePenalty?: boolean; // true if a time penalty was applied (uitdaging only)
 }
 
 export interface QuizResult {
@@ -30,32 +33,40 @@ export interface QuizResult {
   correctCount: number;
   totalCount: number;
   percentage: number;
-  timeUsed: number; // seconds used
-  totalTime: number; // total seconds allowed (0 for challenge)
-  // Challenge-specific
+  timeUsed: number; // seconds
+  // Uitdaging-specific:
   challengeWon?: boolean;
   challengeScore?: number;
+  // Alle Tafels-specific:
+  originalQuestionCount?: number; // initial pool size before re-insertions
+  extraQuestions?: number; // how many extra questions from wrong answers
 }
 
-export const DIFFICULTY_SETTINGS: Record<Difficulty, { maxTable: number; timerSeconds: number; label: string }> = {
-  easy: { maxTable: 5, timerSeconds: 90, label: 'Facile' },
-  medium: { maxTable: 10, timerSeconds: 75, label: 'Moyen' },
-  hard: { maxTable: 10, timerSeconds: 60, label: 'Difficile' },
-  challenge: { maxTable: 10, timerSeconds: 0, label: 'Défi' },
-};
+// --- Dutch labels ---
 
 export const OPERATION_LABELS: Record<Operation, string> = {
-  multiplication: 'Multiplications',
-  division: 'Divisions',
-  both: 'Les deux',
+  multiplication: 'Vermenigvuldigen',
+  division: 'Delen',
+  both: 'Allebei',
+};
+
+export const GAME_MODE_LABELS: Record<GameMode, string> = {
+  uitdaging: 'Uitdaging',
+  alleTafels: 'Alle Tafels',
 };
 
 export const INPUT_MODE_LABELS: Record<InputMode, string> = {
-  keyboard: 'Clavier',
-  choice: 'Choix',
+  keyboard: 'Toetsenbord',
+  choice: 'Keuze',
 };
 
-// Challenge mode constants
-export const CHALLENGE_TARGET_SCORE = 20;
+// --- Challenge (Uitdaging) constants ---
+
+export const CHALLENGE_DEFAULT_TARGET_SCORE = 20;
+export const CHALLENGE_TARGET_OPTIONS = [20, 50, 100];
 export const CHALLENGE_DEFAULT_PENALTY_SECONDS = 5;
 export const CHALLENGE_TIMER_OPTIONS = [5, 7, 10];
+
+// --- All tables ---
+
+export const ALL_TABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];

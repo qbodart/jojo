@@ -7,6 +7,11 @@ export const routes: Routes = [
       import('./pages/menu/menu.component').then((m) => m.MenuComponent),
   },
   {
+    path: 'welcome',
+    loadComponent: () =>
+      import('./pages/welcome/welcome.component').then((m) => m.WelcomeComponent),
+  },
+  {
     path: 'quiz',
     loadComponent: () =>
       import('./pages/quiz/quiz.component').then((m) => m.QuizComponent),

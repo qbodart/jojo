@@ -1,3 +1,7 @@
+@if (isPerfect()) {
+  <app-confetti />
+}
+
 <div class="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-sky-100 flex flex-col items-center justify-center p-4 sm:p-8">
 
   @if (result(); as r) {
@@ -21,7 +25,6 @@
 
     <!-- Score Card -->
     <div class="bg-white rounded-3xl shadow-2xl p-6 sm:p-10 w-full max-w-md mb-6 animate-bounce-in">
-      <!-- Config label -->
       <p class="text-center text-sm text-purple-400 font-semibold mb-4">{{ configLabel() }}</p>
 
       <!-- Big percentage -->
@@ -36,17 +39,27 @@
         </span>
       </div>
 
-      <!-- Score details -->
-      <div class="grid grid-cols-2 gap-4 text-center">
+      <!-- Stats grid -->
+      <div class="grid grid-cols-3 gap-3 text-center">
         <div class="bg-purple-50 rounded-2xl p-3">
-          <p class="text-2xl sm:text-3xl font-extrabold text-purple-700">{{ r.correctCount }}</p>
-          <p class="text-xs sm:text-sm text-purple-500 font-semibold">Bonnes réponses</p>
+          <p class="text-xl sm:text-2xl font-extrabold text-purple-700">{{ formattedTime() }}</p>
+          <p class="text-[10px] sm:text-xs text-purple-500 font-semibold">Tijd</p>
         </div>
-        <div class="bg-purple-50 rounded-2xl p-3">
-          <p class="text-2xl sm:text-3xl font-extrabold text-purple-700">{{ r.totalCount }}</p>
-          <p class="text-xs sm:text-sm text-purple-500 font-semibold">Questions</p>
+        <div class="bg-green-50 rounded-2xl p-3">
+          <p class="text-xl sm:text-2xl font-extrabold text-green-600">{{ r.correctCount }}</p>
+          <p class="text-[10px] sm:text-xs text-green-500 font-semibold">Goed</p>
+        </div>
+        <div class="bg-red-50 rounded-2xl p-3">
+          <p class="text-xl sm:text-2xl font-extrabold text-red-500">{{ r.totalCount - r.correctCount }}</p>
+          <p class="text-[10px] sm:text-xs text-red-400 font-semibold">Fouten</p>
         </div>
       </div>
+
+      @if (extraQuestionsCount() > 0) {
+        <p class="text-center text-xs text-purple-400 mt-3">
+          +{{ extraQuestionsCount() }} extra vragen door fouten
+        </p>
+      }
     </div>
 
     <!-- Missed questions -->
@@ -56,12 +69,12 @@
           (click)="toggleMissed()"
           class="w-full text-center text-purple-600 font-bold text-sm sm:text-base py-2 hover:text-purple-800 transition-colors cursor-pointer"
         >
-          {{ showMissed() ? 'Masquer' : 'Voir' }} les erreurs ({{ missedQuestions().length }})
+          {{ showMissed() ? 'Verbergen' : 'Fouten bekijken' }} ({{ missedQuestions().length }})
           <span class="ml-1">{{ showMissed() ? '▲' : '▼' }}</span>
         </button>
 
         @if (showMissed()) {
-          <div class="bg-white rounded-2xl shadow-lg p-4 mt-2 space-y-2 animate-bounce-in">
+          <div class="bg-white rounded-2xl shadow-lg p-4 mt-2 space-y-2 animate-bounce-in max-h-48 overflow-y-auto">
             @for (missed of missedQuestions(); track $index) {
               <div class="flex items-center justify-between bg-red-50 rounded-xl px-4 py-2">
                 <span class="font-bold text-red-600 text-sm sm:text-base">
@@ -83,7 +96,7 @@
         (click)="replay()"
         class="flex-1 px-6 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-lg sm:text-xl font-extrabold rounded-full shadow-xl hover:from-amber-500 hover:to-orange-600 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
       >
-        Rejouer
+        Opnieuw spelen
       </button>
       <button
         (click)="goToMenu()"
@@ -93,12 +106,12 @@
       </button>
     </div>
   } @else {
-    <p class="text-2xl text-purple-600 font-bold">Pas de résultats</p>
+    <p class="text-2xl text-purple-600 font-bold">Geen resultaten</p>
     <button
       (click)="goToMenu()"
       class="mt-4 px-8 py-3 bg-purple-500 text-white rounded-full font-bold hover:bg-purple-600 cursor-pointer"
     >
-      Retour au menu
+      Terug naar menu
     </button>
   }
 </div>

@@ -1,21 +1,22 @@
 import { Component, computed, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { QuizService } from '../../services/quiz.service';
-import { TimerService } from '../../services/timer.service';
-import { DIFFICULTY_SETTINGS, OPERATION_LABELS } from '../../models/quiz.models';
+import { PlayerService } from '../../services/player.service';
+import { ConfettiComponent } from '../../components/confetti/confetti.component';
+import { OPERATION_LABELS } from '../../models/quiz.models';
 
 @Component({
   selector: 'app-results',
   standalone: true,
+  imports: [ConfettiComponent],
   templateUrl: './results.component.html',
 })
 export class ResultsComponent {
   private readonly router = inject(Router);
   private readonly quizService = inject(QuizService);
-  private readonly timerService = inject(TimerService);
+  protected readonly playerService = inject(PlayerService);
 
   readonly showMissed = signal(false);
-
   readonly result = this.quizService.lastResult;
 
   readonly stars = computed(() => {
@@ -27,15 +28,21 @@ export class ResultsComponent {
   });
 
   readonly encouragement = computed(() => {
+    const name = this.playerService.name() || 'Kampioen';
     const s = this.stars();
     switch (s) {
       case 3:
-        return 'Bravo, tu es une championne !';
+        return `Fantastisch, ${name}!`;
       case 2:
-        return 'Bien joué Joséphine !';
+        return `Goed gedaan, ${name}!`;
       default:
-        return "Continue à t'entraîner !";
+        return 'Blijf oefenen!';
     }
+  });
+
+  readonly isPerfect = computed(() => {
+    const r = this.result();
+    return r !== null && r.percentage === 100;
   });
 
   readonly missedQuestions = computed(() => {
@@ -48,8 +55,21 @@ export class ResultsComponent {
     const r = this.result();
     if (!r) return '';
     const opLabel = OPERATION_LABELS[r.config.operation];
-    const diffLabel = DIFFICULTY_SETTINGS[r.config.difficulty].label;
-    return `${opLabel} · ${diffLabel}`;
+    return `${opLabel} · Alle Tafels`;
+  });
+
+  readonly formattedTime = computed(() => {
+    const r = this.result();
+    if (!r) return '0:00';
+    const s = r.timeUsed;
+    const min = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${min}m ${sec.toString().padStart(2, '0')}s`;
+  });
+
+  readonly extraQuestionsCount = computed(() => {
+    const r = this.result();
+    return r?.extraQuestions ?? 0;
   });
 
   readonly starsArray = computed(() => {
@@ -64,14 +84,12 @@ export class ResultsComponent {
   replay(): void {
     const r = this.result();
     if (r) {
-      this.timerService.reset();
       this.quizService.startQuiz(r.config);
       this.router.navigate(['/quiz']);
     }
   }
 
   goToMenu(): void {
-    this.timerService.reset();
     this.router.navigate(['/']);
   }
 }

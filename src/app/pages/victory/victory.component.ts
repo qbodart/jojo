@@ -1,9 +1,9 @@
 import { Component, computed, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { QuizService } from '../../services/quiz.service';
-import { TimerService } from '../../services/timer.service';
+import { PlayerService } from '../../services/player.service';
 import { ConfettiComponent } from '../../components/confetti/confetti.component';
-import { OPERATION_LABELS, CHALLENGE_TARGET_SCORE } from '../../models/quiz.models';
+import { OPERATION_LABELS } from '../../models/quiz.models';
 
 @Component({
   selector: 'app-victory',
@@ -14,11 +14,12 @@ import { OPERATION_LABELS, CHALLENGE_TARGET_SCORE } from '../../models/quiz.mode
 export class VictoryComponent {
   private readonly router = inject(Router);
   private readonly quizService = inject(QuizService);
-  private readonly timerService = inject(TimerService);
+  protected readonly playerService = inject(PlayerService);
 
   readonly showMissed = signal(false);
   readonly result = this.quizService.lastResult;
-  readonly targetScore = CHALLENGE_TARGET_SCORE;
+
+  readonly targetScore = computed(() => this.result()?.challengeScore ?? 20);
 
   readonly formattedTime = computed(() => {
     const r = this.result();
@@ -54,14 +55,12 @@ export class VictoryComponent {
   replay(): void {
     const r = this.result();
     if (r) {
-      this.timerService.reset();
       this.quizService.startQuiz(r.config);
       this.router.navigate(['/quiz']);
     }
   }
 
   goToMenu(): void {
-    this.timerService.reset();
     this.router.navigate(['/']);
   }
 }
