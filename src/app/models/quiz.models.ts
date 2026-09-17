@@ -45,8 +45,8 @@ export interface QuizResult {
 // --- Dutch labels ---
 
 export const OPERATION_LABELS: Record<Operation, string> = {
-  multiplication: 'Vermenigvuldigen',
-  division: 'Delen',
+  multiplication: 'Maaltafels',
+  division: 'Deeltafels',
   both: 'Allebei',
 };
 
